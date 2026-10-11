@@ -1,88 +1,33 @@
-# EarthLens: Earth Intelligence
+# EarthLens — Earth Intelligence
 
-NASA Space Apps Challenge 2026, Preliminary Round submission.
+A private NASA environmental-trend application with a Vinext server, refreshable official data sources, and browser-side statistical analysis. The full interface uses an original EarthLens identity, uniform SVG icons, light research cards, responsive horizontal navigation, and consistent report styling.
 
-EarthLens is a web application for exploring long-term environmental trends using real NASA data. It combines refreshable NASA data sources, a world trend map, and a browser-side statistical engine that reports the direction, size, and significance of change at each location.
+## Data and refresh
 
-Live demo: <add link here>
-Team: <add team name here>
+- NASA POWER / MERRA-2: air temperature at 2 m (°C), corrected mean daily precipitation (mm/day), relative humidity at 2 m (%), and wind at 10 m (m/s). The bundled download has 16 sampled coordinates with complete annual observations for 1981–2025.
+- NASA GISTEMP v4: annual land–ocean anomalies in eight latitude bands, 1880–2025 in the bundled source, relative to 1951–1980.
+- All built-in scientific values are actual NASA downloads. POWER values are model grid-cell samples; GISTEMP values are NASA analysis averages. Labels such as Central Amazon identify a sampled coordinate, not a whole-region average. Natural Earth geometry provides public-domain cartographic context.
+- `GET /api/nasa/power?lat=23.8&lon=90.4` fetches a fixed official NASA POWER endpoint. `GET /api/nasa/gistemp` fetches the official NASA GISS table. No key or arbitrary proxy URL is accepted. End years are limited to the previous UTC calendar year, and each year must be complete. NASA publication delays can result in an earlier latest year.
+- Refresh runs on opening a study and every 30 minutes while its browser tab is visible and Auto is enabled. Normal refresh can reuse a validated six-hour server cache. When the host denies shared cache access, a bounded cache in the server instance is used; it is ephemeral and a cache miss retrieves NASA directly. **Refresh NASA data** adds `refresh=1`, requests NASA directly, and bypasses that cache.
+- Every source exposes its last successful fetch date, annual coverage, progress, and errors. Cached responses retain their original fetch timestamp. Partial or total NASA failures retain existing real records and are visibly labeled. The app does not claim real-time conditions.
+- Add NASA location retrieves all four variables at entered coordinates (rounded to two decimals), with at most 40 study points. Saving a workspace preserves coordinate requests. Opening a project retrieves their NASA data; a device cache can restore previously validated records immediately.
+- Source snapshots in `public/assets` provide an initial usable dataset. `data.json` and `gistemp-meta.json` record retrieval times and provenance; `power-*.json` and `gistemp-zonal.csv` preserve the downloaded NASA responses. `fetch_data.py` reproducibly refreshes both scientific snapshots. It does not alter Natural Earth geometry.
 
-## Features
+## Analysis and workspaces
 
-- World trend map and table for 16 sampled coordinates, with location search and sorting
-- Four NASA POWER variables: air temperature at 2 m, precipitation, relative humidity at 2 m, and wind speed at 10 m (1981-2025)
-- NASA GISTEMP v4 annual land-ocean temperature anomalies in eight latitude bands (1880-2025)
-- Adjustable time intervals and confidence levels (90%, 95%, 99%)
-- Side-by-side comparison of up to four locations against a common baseline
-- Add any coordinate (up to 40 study points) and fetch its NASA data directly
-- Import your own annual CSV data, processed locally and clearly labeled as not independently verified
-- Save a workspace on the device, or export portable JSON projects, results CSV, observations CSV, SVG charts, and standalone HTML reports
-- Data sources page with provenance, coverage, and last successful fetch time
+The observatory includes a world trend map and table, location search/sorting, adjustable intervals, confidence thresholds, four-location comparisons with a common baseline, raw observation tables, provenance, and methods explanations. Available methods are linear trend with Newey–West HAC uncertainty (default), ordinary OLS with Student's t inference, and tie-corrected Mann–Kendall with Sen's slope. Benjamini–Hochberg q-values are computed across all eligible locations for the selected variable and interval.
 
-## Data sources
+Annual CSV import remains explicitly **user supplied and not independently verified**. Imports are processed locally, with quoting, duplicate, fill-value, coordinate, minimum-length, and spreadsheet formula-injection checks. Save workspace persists settings and imports on this browser/device; portable JSON projects, results CSV, observations CSV, vector charts, and standalone HTML reports are downloadable. There is no account-synchronized research database or closed-tab background update job.
 
-| Source | Content | Coverage |
-| --- | --- | --- |
-| NASA POWER / MERRA-2 | Temperature, precipitation, humidity, wind (model grid-cell values) | 1981-2025 |
-| NASA GISTEMP v4 | Temperature anomalies relative to 1951-1980 | 1880-2025 |
-| Natural Earth | Map geometry (public domain) | n/a |
+## Statistics and limits
 
-All built-in scientific values are actual NASA downloads. POWER values are model grid-cell samples, not whole-region averages. The app shows the latest published complete years and does not claim real-time conditions. No NASA API key is needed.
+The centered linear fit is `y = mean(y) + slope × (year − mean(year))`. HAC uses Bartlett-weighted lagged score products, lag `floor(4(n/100)^(2/9))`, and scaling `n/(n−2)`. Two-sided p-values and pointwise mean-trend intervals use a normal approximation. OLS uses t with n−2 degrees of freedom. Location slope confidence limits are unadjusted; significant map markers require BH q ≤ α. Sen slopes have no supplied confidence interval. At least eight annual observations are required. Missing years are never interpolated; HAC lag positions follow successive valid observations and calendar gaps generate a caution. Spatial/temporal dependence can affect inference. Significance does not establish causality, practical importance, or future change.
 
-## Statistical methods
+## Build and verification
 
-- Linear trend with Newey-West HAC uncertainty (default)
-- Ordinary least squares with Student's t inference
-- Mann-Kendall test with Sen's slope
-- Benjamini-Hochberg q-values across all eligible locations to control the false discovery rate
-- At least eight annual observations are required, and missing years are never interpolated
+Keep the supplied Sites Vite/worker integration and manifest. Use the Sites installation/build helpers for this environment. `public` contains frontend assets, `frontend/index.html` is the server root HTML source, `app/api/nasa` exposes server routes, and `server/nasa.mjs` validates/caches upstream responses. Keep the two HTML source files synchronized when editing the interface.
 
-Statistical significance does not establish causality, practical importance, or future change.
-
-## Tech stack
-
-- Frontend: HTML, CSS, and vanilla JavaScript in `public/`
-- Server: Vinext (Next.js on Vite) running as a Cloudflare Worker
-- Data refresh: `server/nasa.mjs` with fixed NASA endpoints, validation, and cache fallback
-- Tooling: pnpm, TypeScript, Tailwind CSS, Drizzle ORM, Wrangler
-- Data snapshot script: Python (`fetch_data.py`)
-
-## Getting started
-
-Requirements: Node.js 22.13 or newer and pnpm 11.25.0. Internet access is needed to install dependencies and fetch fresh NASA data.
-
-```sh
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Then open http://localhost:5173.
-
-To build and run the compiled app:
-
-```sh
-pnpm build
-pnpm start
-```
-
-The NASA API routes need the Worker runtime, so opening `index.html` directly or using a plain static file server will not work.
-
-## API routes
-
-- `GET /api/nasa/power?lat=23.8&lon=90.4` fetches NASA POWER data for a coordinate
-- `GET /api/nasa/gistemp` fetches the NASA GISTEMP table
-
-Add `refresh=1` to bypass the server cache.
-
-## Refreshing the data snapshots
-
-```sh
-python fetch_data.py
-```
-
-This rewrites the NASA snapshots in `public/assets`. It does not change the map geometry.
-
-## Tests
+Regression checks:
 
 ```sh
 node tests/test-stats.cjs
@@ -94,26 +39,4 @@ node tests/test-feeds.cjs
 python tests/reference-check.py
 ```
 
-The UI and workspace tests need jsdom (set `EARTHLENS_JSDOM_PATH` if it is installed elsewhere). The Python reference check needs NumPy, SciPy, and statsmodels.
-
-## Project structure
-
-```
-app/api/nasa/     NASA API routes (POWER and GISTEMP)
-server/           NASA fetching, validation, and caching
-public/           Interface, statistics engine, and bundled NASA data
-frontend/         HTML served by the server root route
-tests/            Statistical, import, UI, workspace, and NASA refresh tests
-build/, scripts/  Framework and Worker integration
-fetch_data.py     Reproducible data snapshot downloader
-```
-
-Keep `frontend/index.html` and `public/index.html` in sync when editing the interface.
-
-## Acknowledgements
-
-Data provided by NASA POWER and NASA GISS. Map geometry from Natural Earth. NASA affiliation or endorsement is not implied.
-
-## License
-
-<add license here>
+DOM tests require jsdom (`EARTHLENS_JSDOM_PATH` accepts an external installation). The Python reference test requires SciPy and statsmodels. Tests cover real NASA fixtures, incomplete years, units, cache dates, manual refresh, source outages, added coordinates, persistence, navigation, charts, import/export, and statistical references. Browser visual QA is unavailable in the managed build environment.
